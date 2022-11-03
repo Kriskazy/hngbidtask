@@ -1,6 +1,6 @@
 # hngbidtask
 
-##How To Use
+## How To Use
 
 - Install the latest version of Node.
 
