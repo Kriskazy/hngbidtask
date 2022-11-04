@@ -1,41 +1,42 @@
-const csv = require("csvtojson");
-const sha256 = require("js-sha256").sha256;
+const csv = require("csv-parser");
 const fs = require("fs");
-const { parseAsync } = require("json2csv");
+const { Parser } = require("json2csv");
+const { strToList, hash } = require("./utils/utils");
 
-const filePath = process.argv[2] || "filename.csv";
+const createShaCsv = (filename) => {
+  const dataArray = [];
+  fs.createReadStream(filename)
+    .pipe(csv())
+    .on("data", function (data) {
+      dict = {
+        format: "CHIP-0007",
+        name: data.Name,
+        description: data.Description,
+        minting_tool: "SuperMinter/2.5.2",
+        sensitive_content: false,
+        series_number: data["Series Number"],
+        series_total: "1000",
+        attributes: strToList(data.Attributes),
+        collection: {
+          name: "Zuri NFT Tickets for Free Lunch",
+          id: "b774f676-c1d5-422e-beed-00ef5510c64d",
+          attributes: [
+            {
+              type: "description",
+              value: "Rewards for accomplishments during HNGi9.",
+            },
+          ],
+        },
+      };
+      const SHA = hash(JSON.stringify(dict));
+      data.SHA = SHA;
+      dataArray.push(data);
+    })
+    .on("end", function () {
+      const json2csvParser = new Parser(Object.keys(dataArray[0]));
+      const result = json2csvParser.parse(dataArray);
+      fs.writeFileSync("./csv/filename.csv", result);
+    });
+};
 
-async function csvcon(csvFilePath) {
-  // console.log(csvFilePath);
-  if (!csvFilePath) {
-    return console.log("please provide a valid file path");
-  }
-  const jsonArray = await csv().fromFile(csvFilePath);
-  // console.log(jsonArray);
-  const newJsonArr = jsonArray.map((record) => {
-    const sha256_for_each_row = sha256(record.UUID);
-    return {
-      ...record,
-      hash: sha256_for_each_row,
-    };
-  });
-
-  // console.log(newJsonArray);
-  const CSV_OUTPUT = `${csvFilePath.split(".")[0]}.output.csv`;
-  // create csv string
-  const csvOutput = await parseAsync(newJsonArr);
-
-  // write csv string to file
-  fs.writeFile(CSV_OUTPUT, csvOutput, { encoding: "utf8" }, (err2) => {
-    if (err2) {
-      console.error("Error occured: ", err2);
-      return;
-    }
-
-    console.log(
-      `Output CSV generated successfully at ${__dirname}\\${CSV_OUTPUT}`
-    );
-  });
-}
-
-csvcon(filePath);
+createShaCsv("./csv/HNGi9.csv");
